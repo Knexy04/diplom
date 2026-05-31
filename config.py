@@ -26,7 +26,7 @@ TRACKER_CONFIG = "botsort_reid.yaml"  # BoT-SORT с ReID для переиден
 AGE_CLASSIFIER = "ensemble"         # "ensemble" (все методы) / "pose" / "heuristic"
 CHILD_HEIGHT_RATIO = 0.65           # Порог нормализованной высоты (child < ratio * max)
 LABEL_HOLD_SEC = 2.0                # Минимум секунд между сменами лейбла child↔adult (антимигание)
-MIN_BBOX_HEIGHT = 50                # Минимальная высота bbox — отсекает мелкий мусор, но сохраняет дальний план
+MIN_BBOX_HEIGHT = 40                # Минимальная высота bbox — отсекает только самый мелкий мусор
 AGE_MODEL_PATH = "models/age_classifier_v2.onnx"  # ML-модель v2: порог 12 лет, video augmentations
 
 # --- Логика сопровождения ---
