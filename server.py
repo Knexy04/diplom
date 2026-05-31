@@ -69,6 +69,11 @@ def _processing_loop():
     state.stats["total_sec"] = total_frames / video_fps if total_frames > 0 else 0
     state.stats["status"] = "running"
 
+    # Ресайз обработки до 640 px по ширине (как в web_app.py)
+    process_width = min(frame_width, 640)
+    scale = process_width / frame_width
+    process_height = int(frame_height * scale)
+
     # Применяем настройки на уровне config (так делает и web_app.py)
     config.PROXIMITY_RADIUS_PX = state.proximity_radius
     config.ALERT_THRESHOLD_SEC = state.alert_threshold
@@ -77,7 +82,7 @@ def _processing_loop():
     alert_manager = AlertManager()
     heatmap_acc = None
     if config.HEATMAP_ENABLED:
-        heatmap_acc = HeatmapAccumulator(frame_width, frame_height)
+        heatmap_acc = HeatmapAccumulator(process_width, process_height)
 
     fps_counter = FPSCounter()
     state.alerts.clear()
@@ -93,6 +98,11 @@ def _processing_loop():
         current_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
         current_time = time.time()
         fps_counter.tick()
+
+        # Ресайз кадра до рабочего разрешения (640px) — ускоряет в 3-5 раз
+        if scale < 1.0:
+            frame = cv2.resize(frame, (process_width, process_height),
+                               interpolation=cv2.INTER_LINEAR)
 
         # --- Пайплайн ---
         persons = detector.detect_and_track(frame)
