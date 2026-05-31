@@ -256,16 +256,13 @@ if start_btn and video_path is not None:
         if config.SHOW_FPS_OVERLAY:
             frame = draw_fps(frame, fps_counter.get_fps())
 
-        # --- Отображение (оптимизация трафика: resize до 960px + Streamlit отдаёт JPEG) ---
+        # --- Отображение ---
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         if frame_rgb.shape[1] > 960:
             new_w = 960
             new_h = int(frame_rgb.shape[0] * 960 / frame_rgb.shape[1])
-            frame_rgb_small = cv2.resize(frame_rgb, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        else:
-            frame_rgb_small = frame_rgb
-        video_placeholder.image(frame_rgb_small, channels="RGB",
-                                use_container_width=True, output_format="JPEG")
+            frame_rgb = cv2.resize(frame_rgb, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
 
         # Статистика и UI обновляются реже, чем кадры — не узкое место
         if ui_frame_count % ui_update_every == 0:
@@ -295,8 +292,7 @@ if start_btn and video_path is not None:
         st.subheader("Итоговая тепловая карта")
         blank = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
         heatmap_img = heatmap_acc.render_overlay(blank)
-        st.image(cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB),
-                 use_container_width=True, output_format="JPEG")
+        st.image(cv2.cvtColor(heatmap_img, cv2.COLOR_BGR2RGB), use_container_width=True)
 
 elif start_btn and video_path is None:
     st.warning("Выберите источник видео в боковой панели")
