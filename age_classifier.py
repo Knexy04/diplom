@@ -399,7 +399,11 @@ class EnsembleAgeClassifier(AgeClassifier):
             # Собираем оценки от каждого метода
             votes = []  # (confidence, weight)
             debug = {}
-            # sitting = is_person_sitting(person)
+            # Если человек сидит — height/HB-методы дают ложный «ребёнок»,
+            # отключаем их. Остаются YOLO26 + Pose + ML.
+            sitting = is_person_sitting(person)
+            if sitting:
+                debug["sit"] = 1
 
             # 0. YOLO26 direct detection (если доступен)
             if person.yolo_class is not None:
@@ -412,11 +416,12 @@ class EnsembleAgeClassifier(AgeClassifier):
                 votes.append((yolo_score, yolo_w))
                 debug["Y26"] = yolo_score
 
-            # 1. Head-to-body ratio
-            hb_conf = estimate_head_body_ratio_confidence(person)
-            if hb_conf is not None:
-                votes.append((hb_conf, self.HEAD_BODY_WEIGHT))
-                debug["HB"] = hb_conf
+            # 1. Head-to-body ratio (только для стоящих)
+            if not sitting:
+                hb_conf = estimate_head_body_ratio_confidence(person)
+                if hb_conf is not None:
+                    votes.append((hb_conf, self.HEAD_BODY_WEIGHT))
+                    debug["HB"] = hb_conf
 
             # 2. Pose (пропорции скелета)
             pose_conf = estimate_pose_confidence(person)
@@ -433,17 +438,19 @@ class EnsembleAgeClassifier(AgeClassifier):
                     votes.append((ml_conf, self.ML_WEIGHT))
                     debug["M"] = ml_conf
 
-            # 4. Относительная высота (к другим в кадре)
-            rel_conf = estimate_height_confidence(person, persons, frame_h)
-            if rel_conf is not None:
-                votes.append((rel_conf, self.HEIGHT_REL_WEIGHT))
-                debug["Rh"] = rel_conf
+            # 4-5. Высотные методы — только для стоящих. У сидящего bbox
+            # короче из-за позы, не из-за возраста; иначе сидящих взрослых
+            # классифицировали бы как детей.
+            if not sitting:
+                rel_conf = estimate_height_confidence(person, persons, frame_h)
+                if rel_conf is not None:
+                    votes.append((rel_conf, self.HEIGHT_REL_WEIGHT))
+                    debug["Rh"] = rel_conf
 
-            # 5. Абсолютная высота (к размеру кадра)
-            abs_conf = estimate_absolute_height_confidence(person, frame_h)
-            if abs_conf is not None:
-                votes.append((abs_conf, self.HEIGHT_ABS_WEIGHT))
-                debug["Ah"] = abs_conf
+                abs_conf = estimate_absolute_height_confidence(person, frame_h)
+                if abs_conf is not None:
+                    votes.append((abs_conf, self.HEIGHT_ABS_WEIGHT))
+                    debug["Ah"] = abs_conf
 
             # Взвешенное среднее
             if votes:
