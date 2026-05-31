@@ -146,12 +146,13 @@ def _processing_loop():
         frame = draw_alert_banner(frame, len(alerted_ids))
         frame = draw_fps(frame, fps_counter.get_fps())
 
-        # --- JPEG ---
-        if frame.shape[1] > 960:
-            scale = 960 / frame.shape[1]
-            frame = cv2.resize(frame, (960, int(frame.shape[0] * scale)),
-                               interpolation=cv2.INTER_AREA)
-        ok, jpg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        # --- JPEG (повышенное качество отображения) ---
+        if frame.shape[1] < 1280:
+            display_scale = 1280 / frame.shape[1]
+            frame = cv2.resize(frame,
+                               (1280, int(frame.shape[0] * display_scale)),
+                               interpolation=cv2.INTER_CUBIC)
+        ok, jpg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
         if ok:
             with state.lock:
                 state.last_frame_jpeg = jpg.tobytes()
