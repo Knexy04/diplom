@@ -50,6 +50,8 @@ class State:
         self.alert_threshold = config.ALERT_THRESHOLD_SEC
         self.worker_thread: threading.Thread | None = None
         self.stop_flag = False
+        self.paused = False
+        self.seek_to_sec: float | None = None
 
 
 state = State()
@@ -91,6 +93,17 @@ def _processing_loop():
     while cap.isOpened():
         if state.stop_flag:
             break
+        # Пауза — крутимся вхолостую
+        if state.paused:
+            time.sleep(0.1)
+            continue
+        # Перемотка
+        if state.seek_to_sec is not None:
+            target_frame = int(state.seek_to_sec * video_fps)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+            state.seek_to_sec = None
+            # Сбрасываем менеджер тревог, чтобы не было ложных алертов от рассинхрона
+            alert_manager.states.clear()
         ret, frame = cap.read()
         if not ret:
             break
@@ -168,7 +181,12 @@ def _processing_loop():
         })
 
     cap.release()
-    state.stats["status"] = "done"
+    final_status = "stopped" if state.stop_flag else "done"
+    state.stats["status"] = final_status
+    state.stats["fps"] = 0.0
+    # Очищаем последний кадр, чтобы стрим показывал плейсхолдер
+    with state.lock:
+        state.last_frame_jpeg = None
 
 
 # ====== Маршруты ======
@@ -216,7 +234,15 @@ INDEX_HTML = """
 <div class="wrap">
   <div>
     <div class="video-card">
-      <img src="/stream" alt="видео не запущено">
+      <img id="video-img" src="/stream" alt="видео не запущено">
+    </div>
+    <div class="timeline" style="margin-top:10px; background:#fff; border-radius:10px; padding:10px 14px; box-shadow:0 1px 3px rgba(0,0,0,.06);">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button id="pause-btn" type="button" onclick="togglePause()" style="background:#6b7280; padding:6px 12px;">⏸ Пауза</button>
+        <span id="time-label" style="font-size:13px; color:#555; min-width:110px;">0 / 0 сек</span>
+        <input id="seek-bar" type="range" min="0" max="0" value="0" step="0.1"
+               style="flex:1; cursor:pointer;" oninput="onSeekInput(this)" onchange="onSeekChange(this)">
+      </div>
     </div>
   </div>
   <div>
@@ -228,7 +254,6 @@ INDEX_HTML = """
       <div class="stat"><span>Детей</span><strong id="children">0</strong></div>
       <div class="stat"><span>Взрослых</span><strong id="adults">0</strong></div>
       <div class="stat"><span>Тревог активно</span><strong id="alerted">0</strong></div>
-      <div class="stat"><span>Время</span><strong id="time">0 / 0 сек</strong></div>
     </div>
 
     <div class="panel" style="margin-top:14px">
@@ -257,6 +282,9 @@ INDEX_HTML = """
 </div>
 
 <script>
+let seekDragging = false;
+let lastTotal = 0;
+
 async function refresh() {
   try {
     const r = await fetch('/stats');
@@ -266,16 +294,28 @@ async function refresh() {
     document.getElementById('children').textContent = s.children;
     document.getElementById('adults').textContent = s.adults;
     document.getElementById('alerted').textContent = s.alerted;
-    document.getElementById('time').textContent = `${s.current_sec} / ${s.total_sec} сек`;
     document.getElementById('status').textContent = s.status;
-    const dot = document.getElementById('status-dot');
-    dot.className = 'status-dot status-' + s.status;
+    document.getElementById('status-dot').className = 'status-dot status-' + s.status;
+
+    // timeline
+    const seek = document.getElementById('seek-bar');
+    if (s.total_sec && s.total_sec !== lastTotal) {
+      seek.max = s.total_sec;
+      lastTotal = s.total_sec;
+    }
+    if (!seekDragging) {
+      seek.value = s.current_sec;
+    }
+    document.getElementById('time-label').textContent =
+      `${(+s.current_sec).toFixed(1)} / ${(+s.total_sec).toFixed(1)} сек`;
 
     const alertsBox = document.getElementById('alerts');
     if (s.alerts && s.alerts.length) {
       alertsBox.innerHTML = s.alerts.map(a =>
         `<div class="alert-item"><strong>Ребёнок #${a.track_id}</strong> без сопровождения ${a.elapsed_sec} сек<br><span class="ts">${a.ts}</span></div>`
       ).join('');
+    } else {
+      alertsBox.innerHTML = '<em style="color:#999;font-size:13px">Пока тревог нет</em>';
     }
   } catch(e) {}
 }
@@ -285,14 +325,33 @@ refresh();
 document.getElementById('form-upload').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
-  const r = await fetch('/start', { method: 'POST', body: f });
-  const t = await r.text();
-  // перезагрузим картинку
-  document.querySelector('.video-card img').src = '/stream?ts=' + Date.now();
+  await fetch('/start', { method: 'POST', body: f });
+  document.getElementById('video-img').src = '/stream?ts=' + Date.now();
+  document.getElementById('pause-btn').textContent = '⏸ Пауза';
 });
 
 async function stop() {
   await fetch('/stop', { method: 'POST' });
+  document.getElementById('video-img').src = '/stream?ts=' + Date.now();
+}
+
+async function togglePause() {
+  const r = await fetch('/pause', { method: 'POST' });
+  const j = await r.json();
+  document.getElementById('pause-btn').textContent = j.paused ? '▶ Продолжить' : '⏸ Пауза';
+}
+
+function onSeekInput(el) {
+  seekDragging = true;
+  document.getElementById('time-label').textContent =
+    `${(+el.value).toFixed(1)} / ${(+el.max).toFixed(1)} сек`;
+}
+
+async function onSeekChange(el) {
+  const fd = new FormData();
+  fd.append('position', el.value);
+  await fetch('/seek', { method: 'POST', body: fd });
+  setTimeout(() => { seekDragging = false; }, 800);
 }
 </script>
 </body>
@@ -350,7 +409,26 @@ async def start(
 @app.post("/stop")
 async def stop_endpoint():
     state.stop_flag = True
-    return {"status": "stopping"}
+    state.paused = False
+    if state.worker_thread and state.worker_thread.is_alive():
+        state.worker_thread.join(timeout=2)
+    state.stats["status"] = "idle"
+    state.stats["fps"] = 0.0
+    with state.lock:
+        state.last_frame_jpeg = None
+    return {"status": "stopped"}
+
+
+@app.post("/pause")
+async def pause_endpoint():
+    state.paused = not state.paused
+    return {"paused": state.paused}
+
+
+@app.post("/seek")
+async def seek_endpoint(position: float = Form(...)):
+    state.seek_to_sec = max(0.0, position)
+    return {"seek": state.seek_to_sec}
 
 
 def _mjpeg_frames():
