@@ -400,10 +400,13 @@ class EnsembleAgeClassifier(AgeClassifier):
             votes = []  # (confidence, weight)
             debug = {}
             # Если человек сидит — height/HB-методы дают ложный «ребёнок»,
-            # отключаем их. Остаются YOLO26 + Pose + ML.
+            # отключаем их. Остаются YOLO26 + Pose + ML, плюс «adult-prior»
+            # (сидящие в общественных пространствах статистически чаще взрослые).
             sitting = is_person_sitting(person)
             if sitting:
                 debug["sit"] = 1
+                votes.append((0.70, 1.5))  # adult-prior score 0.7, вес 1.5
+                debug["sitP"] = 0.70
 
             # 0. YOLO26 direct detection (если доступен)
             if person.yolo_class is not None:
