@@ -69,14 +69,12 @@ def _processing_loop():
     state.stats["total_sec"] = total_frames / video_fps if total_frames > 0 else 0
     state.stats["status"] = "running"
 
-    detector = PersonDetector(
-        proximity_radius=state.proximity_radius,
-    )
-    classifier = create_age_classifier(type=config.AGE_CLASSIFIER)
-    alert_manager = AlertManager(
-        proximity_radius=state.proximity_radius,
-        alert_threshold=state.alert_threshold,
-    )
+    # Применяем настройки на уровне config (так делает и web_app.py)
+    config.PROXIMITY_RADIUS_PX = state.proximity_radius
+    config.ALERT_THRESHOLD_SEC = state.alert_threshold
+    detector = PersonDetector()
+    classifier = create_age_classifier()
+    alert_manager = AlertManager()
     heatmap_acc = None
     if config.HEATMAP_ENABLED:
         heatmap_acc = HeatmapAccumulator(frame_width, frame_height)
