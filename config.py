@@ -14,7 +14,7 @@ OUTPUT_VIDEO = "output/result.mp4"  # Путь для сохранения ре�
 YOLO_MODEL = "yolo26n-pose.pt"     # pose-модель: bbox + 17 keypoints скелета
 YOLO_CHILD_MODEL = "models/yolo_child_detector.pt"  # YOLO26: 2 класса (adult/child)
 USE_YOLO_CHILD_DETECTOR = True     # YOLO26s обучена на adult/child dataset
-CONFIDENCE_THRESHOLD = 0.40          # Минимальная уверенность детекции (повышен для отсечения шумовых детекций)
+CONFIDENCE_THRESHOLD = 0.30          # Минимальная уверенность детекции — компромисс между шумом и пропусками
 YOLO_IMGSZ = 640                    # Разрешение inference (меньше = быстрее, 416/480/640)
 POSE_SKIP_FRAMES = 3                # Запускать pose-модель раз в N кадров в dual-mode
 YOLO_DEVICE = "mps"                 # Устройство inference: "mps" (Apple Silicon GPU), "cuda", "cpu"
@@ -26,7 +26,7 @@ TRACKER_CONFIG = "botsort_reid.yaml"  # BoT-SORT с ReID для переиден
 AGE_CLASSIFIER = "ensemble"         # "ensemble" (все методы) / "pose" / "heuristic"
 CHILD_HEIGHT_RATIO = 0.65           # Порог нормализованной высоты (child < ratio * max)
 LABEL_HOLD_SEC = 2.0                # Минимум секунд между сменами лейбла child↔adult (антимигание)
-MIN_BBOX_HEIGHT = 80                # Минимальная высота bbox — отрезает мусор (стулья, неполные фигуры)
+MIN_BBOX_HEIGHT = 50                # Минимальная высота bbox — отсекает мелкий мусор, но сохраняет дальний план
 AGE_MODEL_PATH = "models/age_classifier_v2.onnx"  # ML-модель v2: порог 12 лет, video augmentations
 
 # --- Логика сопровождения ---
