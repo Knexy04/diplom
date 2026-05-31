@@ -184,6 +184,8 @@ if start_btn and video_path is not None:
     frame_count = 0
     ui_update_every = 3  # Обновлять метрики раз в N обработанных кадров
     ui_frame_count = 0
+    last_display_time = 0.0
+    display_interval = 0.1  # Обновлять видео в UI не чаще 10 раз в секунду
 
     # Основной цикл
     while cap.isOpened():
@@ -256,13 +258,16 @@ if start_btn and video_path is not None:
         if config.SHOW_FPS_OVERLAY:
             frame = draw_fps(frame, fps_counter.get_fps())
 
-        # --- Отображение ---
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        if frame_rgb.shape[1] > 960:
-            new_w = 960
-            new_h = int(frame_rgb.shape[0] * 960 / frame_rgb.shape[1])
-            frame_rgb = cv2.resize(frame_rgb, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+        # --- Отображение (троттлинг — не чаще display_interval) ---
+        now = time.time()
+        if now - last_display_time >= display_interval:
+            last_display_time = now
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if frame_rgb.shape[1] > 720:
+                new_w = 720
+                new_h = int(frame_rgb.shape[0] * 720 / frame_rgb.shape[1])
+                frame_rgb = cv2.resize(frame_rgb, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
 
         # Статистика и UI обновляются реже, чем кадры — не узкое место
         if ui_frame_count % ui_update_every == 0:
