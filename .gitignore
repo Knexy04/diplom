@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+.claude/
+
+# YOLO / Ultralytics outputs
+runs/
+
+# Project artefacts
+diagrams/
+Andruschenko_VKR_extracted/
+TODO_code.md
+
+# Documents and notes
+*.docx
+*.docx.tmp
+1.txt
+2.txt
+3.txt
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.pdf
+*.drawio
+*.drawio.drawio
+
+# Datasets (большие, не нужны на сервере)
+data/UTKFace/
+data/FGNET/
+data/adult_child_dataset/
+
+# Большие тестовые видео — на GitHub не пушим (превышают лимит 100 МБ),
+# заливаются на сервер отдельно через scp.
+data/*.mp4
+
+# Output / temp
+output/
+*.tmp
+*.log
+*.swp

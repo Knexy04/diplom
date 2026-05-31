@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+tests/
+runs/
+datasets.zip
+data/UTKFace/
+data/adult_child_dataset/
+*.docx
+.claude/

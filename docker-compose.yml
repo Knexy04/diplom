@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+    # Раскомментировать для доступа к веб-камере (Linux):
+    # devices:
+    #   - /dev/video0:/dev/video0
+    # privileged: true
