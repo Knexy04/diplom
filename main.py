@@ -126,9 +126,21 @@ def main():
     frame_count = 0
 
     try:
+        is_rtsp = isinstance(config.VIDEO_SOURCE, str) and \
+            config.VIDEO_SOURCE.lower().startswith("rtsp://")
+
         while True:
             ret, frame = cap.read()
             if not ret:
+                # RTSP-поток мог кратковременно разорваться — пробуем переподключиться
+                if is_rtsp:
+                    print(f"[RTSP] Поток прерван, переподключение через "
+                          f"{config.RTSP_RECONNECT_SEC}s...")
+                    cap.release()
+                    time.sleep(config.RTSP_RECONNECT_SEC)
+                    cap = cv2.VideoCapture(config.VIDEO_SOURCE)
+                    if cap.isOpened():
+                        continue
                 break
 
             frame_count += 1
@@ -151,7 +163,7 @@ def main():
                     adults.append(person)
 
             # --- 4. Логика сопровождения и алертов ---
-            alerts = alert_manager.update(children, adults, current_time)
+            alerts = alert_manager.update(children, adults, current_time, frame_idx=frame_count)
 
             # Собираем информацию для визуализации
             alone_times = {}

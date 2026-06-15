@@ -18,7 +18,5 @@ COPY . .
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "web_app.py", \
-     "--server.port=8501", \
-     "--server.address=0.0.0.0", \
-     "--server.headless=true"]
+# АРМ оператора: FastAPI + MJPEG-стрим (server.py)
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8501"]

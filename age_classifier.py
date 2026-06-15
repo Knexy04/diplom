@@ -467,7 +467,7 @@ class EnsembleAgeClassifier(AgeClassifier):
         # Групповая коррекция: если >4 людей и >80% помечены как "child",
         # модель скорее всего ошибается — поднимаем всем скоры
         if len(scores_for_group) >= 4:
-            child_count = sum(1 for _, s in scores_for_group if s < 0.60)
+            child_count = sum(1 for _, s in scores_for_group if s < config.AGE_CHILD_THRESHOLD)
             child_ratio = child_count / len(scores_for_group)
             if child_ratio > 0.75:
                 # Маловероятно что >75% людей в ТЦ — дети.
@@ -512,14 +512,15 @@ class EnsembleAgeClassifier(AgeClassifier):
         Лейбл не меняется чаще раза в LABEL_HOLD_SEC секунд.
         """
         # Что предлагает текущий score?
+        thr = config.AGE_CHILD_THRESHOLD
         cache = self.track_cache.get(track_id)
         if cache:
             avg = sum(cache) / len(cache)
-            proposed = "child" if avg < 0.60 else "adult"
+            proposed = "child" if avg < thr else "adult"
         else:
             debug = self.debug_scores.get(track_id, {})
             if "AVG" in debug:
-                proposed = "child" if debug["AVG"] < 0.60 else "adult"
+                proposed = "child" if debug["AVG"] < thr else "adult"
             else:
                 proposed = "child"  # safe default
 

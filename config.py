@@ -4,7 +4,11 @@
 """
 
 # --- Источник видео ---
-VIDEO_SOURCE = "data/sample.mp4"    # Путь к файлу или 0 для веб-камеры
+# Поддерживаются: локальный файл (MP4/AVI/MOV), индекс веб-камеры (0),
+# сетевая трансляция IP-камеры по RTSP, например:
+#   VIDEO_SOURCE = "rtsp://login:pass@192.168.1.10:554/Streaming/Channels/101"
+VIDEO_SOURCE = "data/sample.mp4"    # Путь к файлу, 0 для веб-камеры или RTSP-URL
+RTSP_RECONNECT_SEC = 3.0            # Пауза перед попыткой переподключения к RTSP при разрыве
 OUTPUT_VIDEO = "output/result.mp4"  # Путь для сохранения результата (None — не сохранять)
 
 # --- Детекция ---
@@ -15,15 +19,27 @@ YOLO_MODEL = "yolo26n-pose.pt"     # pose-модель: bbox + 17 keypoints ск
 YOLO_CHILD_MODEL = "models/yolo_child_detector.pt"  # YOLO26: 2 класса (adult/child)
 USE_YOLO_CHILD_DETECTOR = True     # YOLO26s обучена на adult/child dataset
 CONFIDENCE_THRESHOLD = 0.30          # Минимальная уверенность детекции — компромисс между шумом и пропусками
-YOLO_IMGSZ = 640                    # Разрешение inference (меньше = быстрее, 416/480/640)
-POSE_SKIP_FRAMES = 3                # Запускать pose-модель раз в N кадров в dual-mode
-YOLO_DEVICE = "mps"                 # Устройство inference: "mps" (Apple Silicon GPU), "cuda", "cpu"
+YOLO_IMGSZ = 1280                   # Разрешение inference (1280 = макс. точность на дальнем плане, требует GPU)
+POSE_SKIP_FRAMES = 1                # Запускать child-детектор каждый кадр (макс. точность; на слабом железе ставь 3)
+# Авто-выбор устройства: cuda (сервер с GPU) → mps (Apple Silicon) → cpu
+def _auto_device():
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            return "mps"
+    except Exception:
+        pass
+    return "cpu"
+YOLO_DEVICE = _auto_device()        # "cuda" на сервере с GPU, "mps" на Mac, иначе "cpu"
 
 # --- Трекинг (BoT-SORT + ReID) ---
 TRACKER_CONFIG = "botsort_reid.yaml"  # BoT-SORT с ReID для переидентификации
 
 # --- Классификация возраста ---
 AGE_CLASSIFIER = "ensemble"         # "ensemble" (все методы) / "pose" / "heuristic"
+AGE_CHILD_THRESHOLD = 0.5           # Порог решения ансамбля: avg-score < threshold → "child"
 CHILD_HEIGHT_RATIO = 0.65           # Порог нормализованной высоты (child < ratio * max)
 LABEL_HOLD_SEC = 2.0                # Минимум секунд между сменами лейбла child↔adult (антимигание)
 MIN_BBOX_HEIGHT = 40                # Минимальная высота bbox — отсекает только самый мелкий мусор
@@ -42,6 +58,7 @@ HEATMAP_ALPHA = 0.4                 # Прозрачность наложени�
 # --- Алерты ---
 ALERT_CONSOLE = True                # Вывод алертов в консоль
 ALERT_WEBHOOK_URL = None            # URL для отправки алерта (None — отключено)
+ALERT_JOURNAL_PATH = "alerts.jsonl" # Журнал тревожных событий в формате JSON Lines (None — не вести)
 
 # --- Отображение ---
 SHOW_WINDOW = True                  # Показывать окно с видео

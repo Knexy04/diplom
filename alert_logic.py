@@ -8,10 +8,12 @@
 4. Если взрослый подошёл — таймер сбрасывается.
 """
 
+import json
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from models import PersonDetection
-from utils import bbox_min_distance
+from utils import bbox_center, bbox_min_distance
 import config
 
 
@@ -45,7 +47,8 @@ class AlertManager:
         self,
         children: list[PersonDetection],
         adults: list[PersonDetection],
-        current_time: float = None
+        current_time: float = None,
+        frame_idx: int = None
     ) -> list[Alert]:
         """
         Обновить состояния и вернуть список алертов.
@@ -86,6 +89,7 @@ class AlertManager:
                     if not state.is_alerted:
                         state.is_alerted = True
                         alerts.append(Alert(child.track_id, elapsed, "NEW"))
+                        self._write_journal(child, elapsed, "NEW", frame_idx)
                     else:
                         alerts.append(Alert(child.track_id, elapsed, "ONGOING"))
             else:
@@ -116,6 +120,34 @@ class AlertManager:
         if state and state.first_seen_alone is not None:
             return current_time - state.first_seen_alone
         return 0.0
+
+    @staticmethod
+    def _write_journal(child: PersonDetection, elapsed: float, status: str,
+                       frame_idx: int = None):
+        """Записать тревожное событие в журнал JSON Lines (ФТ-7).
+
+        Структура записи: временная метка ISO 8601 (UTC), идентификатор трека,
+        накопленная длительность отсутствия сопровождения, статус, координаты
+        центра bbox и номер кадра. Формат JSONL допускает прямую миграцию в СУБД.
+        """
+        path = getattr(config, "ALERT_JOURNAL_PATH", None)
+        if not path:
+            return
+        cx, cy = bbox_center(child.bbox)
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "track_id": int(child.track_id),
+            "duration_sec": round(float(elapsed), 1),
+            "status": status,
+            "x": int(cx),
+            "y": int(cy),
+            "frame": int(frame_idx) if frame_idx is not None else None,
+        }
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except OSError:
+            pass  # Журналирование не должно ронять основной конвейер
 
     @staticmethod
     def _min_distance_to_adults(child: PersonDetection, adults: list[PersonDetection]) -> float:

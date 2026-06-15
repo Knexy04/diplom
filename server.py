@@ -48,6 +48,7 @@ class State:
         self.alerts: list[dict] = []
         self.proximity_radius = config.PROXIMITY_RADIUS_PX
         self.alert_threshold = config.ALERT_THRESHOLD_SEC
+        self.heatmap_enabled = config.HEATMAP_ENABLED
         self.worker_thread: threading.Thread | None = None
         self.stop_flag = False
         self.paused = False
@@ -71,8 +72,9 @@ def _processing_loop():
     state.stats["total_sec"] = total_frames / video_fps if total_frames > 0 else 0
     state.stats["status"] = "running"
 
-    # Ресайз обработки до 640 px по ширине (как в web_app.py)
-    process_width = min(frame_width, 640)
+    # Ресайз обработки до 1280 px по ширине — макс. точность детекции
+    # (на слабом железе можно вернуть 640 ради FPS)
+    process_width = min(frame_width, 1280)
     scale = process_width / frame_width
     process_height = int(frame_height * scale)
 
@@ -82,9 +84,9 @@ def _processing_loop():
     detector = PersonDetector()
     classifier = create_age_classifier()
     alert_manager = AlertManager()
-    heatmap_acc = None
-    if config.HEATMAP_ENABLED:
-        heatmap_acc = HeatmapAccumulator(process_width, process_height)
+    # Аккумулятор создаётся всегда — накопление идёт в фоне, а показ
+    # overlay управляется флагом state.heatmap_enabled (мгновенный тумблер).
+    heatmap_acc = HeatmapAccumulator(process_width, process_height)
 
     fps_counter = FPSCounter()
     state.alerts.clear()
@@ -125,7 +127,7 @@ def _processing_loop():
         for p, lbl in zip(persons, age_labels):
             (children if lbl == "child" else adults).append(p)
 
-        alerts = alert_manager.update(children, adults, current_time)
+        alerts = alert_manager.update(children, adults, current_time, frame_idx=current_frame)
         alone_times = {}
         alerted_ids = set()
         unaccompanied_children = []
@@ -153,7 +155,7 @@ def _processing_loop():
             heatmap_acc.accumulator *= config.HEATMAP_DECAY
 
         # --- Визуализация ---
-        if heatmap_acc:
+        if heatmap_acc and state.heatmap_enabled:
             frame = heatmap_acc.render_overlay(frame)
         frame = draw_persons(frame, persons, age_labels, alone_times, alerted_ids, None)
         frame = draw_alert_banner(frame, len(alerted_ids))
@@ -165,7 +167,7 @@ def _processing_loop():
             frame = cv2.resize(frame,
                                (1280, int(frame.shape[0] * display_scale)),
                                interpolation=cv2.INTER_CUBIC)
-        ok, jpg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
+        ok, jpg = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
         if ok:
             with state.lock:
                 state.last_frame_jpeg = jpg.tobytes()
@@ -267,6 +269,11 @@ INDEX_HTML = """
         <input type="number" name="radius" value="200" step="10" min="50" max="500">
         <label>Порог тревоги (сек)</label>
         <input type="number" name="threshold" value="5" step="0.5" min="1" max="30">
+        <label style="display:flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer;">
+          <input type="checkbox" id="heatmap-toggle" name="heatmap" checked
+                 onchange="toggleHeatmap(this)" style="width:auto; margin:0;">
+          Тепловая карта зон риска
+        </label>
         <div class="row" style="margin-top:14px">
           <button type="submit">▶ Старт</button>
           <button type="button" class="stop" onclick="stop()">⏹ Стоп</button>
@@ -335,6 +342,12 @@ async function stop() {
   document.getElementById('video-img').src = '/stream?ts=' + Date.now();
 }
 
+async function toggleHeatmap(el) {
+  const fd = new FormData();
+  fd.append('enabled', el.checked ? '1' : '0');
+  await fetch('/heatmap', { method: 'POST', body: fd });
+}
+
 async function togglePause() {
   const r = await fetch('/pause', { method: 'POST' });
   const j = await r.json();
@@ -375,6 +388,7 @@ async def start(
     path: str | None = Form(None),
     radius: int = Form(200),
     threshold: float = Form(5.0),
+    heatmap: str | None = Form(None),
 ):
     # остановить текущую обработку
     state.stop_flag = True
@@ -400,6 +414,8 @@ async def start(
 
     state.proximity_radius = radius
     state.alert_threshold = threshold
+    # чекбокс шлёт "on", если отмечен, и не шлёт ничего, если снят
+    state.heatmap_enabled = heatmap is not None
     state.last_frame_jpeg = None
     state.worker_thread = threading.Thread(target=_processing_loop, daemon=True)
     state.worker_thread.start()
@@ -417,6 +433,12 @@ async def stop_endpoint():
     with state.lock:
         state.last_frame_jpeg = None
     return {"status": "stopped"}
+
+
+@app.post("/heatmap")
+async def heatmap_endpoint(enabled: str = Form(...)):
+    state.heatmap_enabled = enabled in ("1", "true", "True", "on")
+    return {"heatmap_enabled": state.heatmap_enabled}
 
 
 @app.post("/pause")
