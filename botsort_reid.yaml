@@ -18,5 +18,5 @@ gmc_method: none           # Компенсация движения камер�
 # ReID — переидентификация людей после окклюзии
 proximity_thresh: 0.5      # Мин. IoU для ReID
 appearance_thresh: 0.8     # Мин. схожесть внешности для ReID
-with_reid: True            # ВКЛЮЧАЕМ ReID!
-model: auto                # Автоматический выбор ReID модели
+with_reid: False           # ReID(model:auto) считается на CPU (~330 мс/кадр) и убивает FPS; выкл для реального времени. Трекинг остаётся по движению (Калман+IoU)
+model: auto                # ReID-модель (используется только при with_reid: True)
