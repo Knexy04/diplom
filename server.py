@@ -92,12 +92,21 @@ def _processing_loop():
     state.alerts.clear()
     frame_count = 0
 
+    # Воспроизведение в реальном времени: «якорь» связывает позицию видео
+    # (в кадрах) с настенными часами. Если обработка опережает — ждём; если
+    # отстаём — пропускаем кадры, чтобы 1 c видео = 1 c реального времени.
+    frame_period = 1.0 / video_fps
+    play_start_wall = time.time()
+    play_start_frame = 0
+    need_reanchor = False
+
     while cap.isOpened():
         if state.stop_flag:
             break
-        # Пауза — крутимся вхолостую
+        # Пауза — крутимся вхолостую (после паузы переякориваемся)
         if state.paused:
             time.sleep(0.1)
+            need_reanchor = True
             continue
         # Перемотка
         if state.seek_to_sec is not None:
@@ -106,6 +115,25 @@ def _processing_loop():
             state.seek_to_sec = None
             # Сбрасываем менеджер тревог, чтобы не было ложных алертов от рассинхрона
             alert_manager.states.clear()
+            need_reanchor = True
+        # Переякорение часов воспроизведения (старт/возобновление/перемотка)
+        if need_reanchor:
+            play_start_wall = time.time()
+            play_start_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+            need_reanchor = False
+
+        # --- Синхронизация с реальным временем ---
+        pos = int(cap.get(cv2.CAP_PROP_POS_FRAMES))          # следующий кадр на чтение
+        target = play_start_frame + (time.time() - play_start_wall) / frame_period
+        if pos < target - 1:
+            # отстаём — пропускаем кадры (без обработки), чтобы догнать часы
+            for _ in range(min(int(target - pos) - 1, 90)):
+                if not cap.grab():
+                    break
+        elif pos > target:
+            # опережаем — ждём наступления момента этого кадра
+            time.sleep(min((pos - target) * frame_period, 1.0))
+
         ret, frame = cap.read()
         if not ret:
             break
