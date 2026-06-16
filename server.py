@@ -256,6 +256,22 @@ INDEX_HTML = """
   .status-done { background:#3b82f6; }
   .status-error { background:#ef4444; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  /* --- Источник: улучшенный вид --- */
+  .field { margin-top:12px; }
+  .field > label { display:block; margin:0 0 5px; font-size:11px; font-weight:600; color:#8a8f98; text-transform:uppercase; letter-spacing:.05em; }
+  input[type=text], input[type=number] { width:100%; padding:9px 11px; border:1px solid #e2e4e9; border-radius:8px; font-size:14px; box-sizing:border-box; background:#fafbfc; transition:border-color .15s, box-shadow .15s; }
+  input[type=text]:focus, input[type=number]:focus { outline:none; border-color:#3563ff; box-shadow:0 0 0 3px rgba(53,99,255,.15); background:#fff; }
+  .file-drop { display:flex; align-items:center; gap:9px; margin-top:0; padding:10px 12px; border:1.5px dashed #cdd2da; border-radius:8px; background:#fafbfc; cursor:pointer; font-size:13px; color:#555; transition:border-color .15s, background .15s; }
+  .file-drop:hover { border-color:#3563ff; background:#f5f8ff; }
+  .file-drop input { display:none; }
+  .file-drop .ic { font-size:17px; line-height:1; }
+  .file-name { color:#8a8f98; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .check { display:flex; align-items:center; gap:9px; margin-top:14px; cursor:pointer; font-size:14px; color:#333; user-select:none; }
+  .check input { width:18px; height:18px; accent-color:#3563ff; margin:0; cursor:pointer; }
+  .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+  .actions button { padding:12px; font-size:15px; font-weight:600; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; }
+  button.start { background:#16a34a; }
+  button.start:hover { background:#138a3e; }
 </style>
 </head>
 <body>
@@ -290,21 +306,32 @@ INDEX_HTML = """
     <div class="panel" style="margin-top:14px">
       <h2>Источник</h2>
       <form id="form-upload" enctype="multipart/form-data" method="POST">
-        <label>Загрузить файл</label>
-        <input type="file" name="file" accept="video/*">
-        <label>или путь к файлу на сервере</label>
-        <input type="text" name="path" placeholder="data/1.mp4" value="data/1.mp4">
-        <label>Радиус сопровождения (px)</label>
-        <input type="number" name="radius" value="200" step="10" min="50" max="500">
-        <label>Порог тревоги (сек)</label>
-        <input type="number" name="threshold" value="5" step="0.5" min="1" max="30">
-        <label style="display:flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer;">
-          <input type="checkbox" id="heatmap-toggle" name="heatmap" checked
-                 onchange="toggleHeatmap(this)" style="width:auto; margin:0;">
+        <div class="field">
+          <label>Видеофайл</label>
+          <label class="file-drop">
+            <span class="ic">📂</span>
+            <span>Выбрать файл…</span>
+            <span class="file-name" id="file-name"></span>
+            <input type="file" name="file" accept="video/*"
+                   onchange="document.getElementById('file-name').textContent = this.files[0] ? this.files[0].name : ''">
+          </label>
+        </div>
+        <div class="field">
+          <label>или путь на сервере</label>
+          <input type="text" name="path" placeholder="data/1.mp4" value="data/1.mp4">
+        </div>
+        <div class="row">
+          <div class="field"><label>Радиус (px)</label>
+            <input type="number" name="radius" value="200" step="10" min="50" max="500"></div>
+          <div class="field"><label>Порог (сек)</label>
+            <input type="number" name="threshold" value="5" step="0.5" min="1" max="30"></div>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="heatmap-toggle" name="heatmap" checked onchange="toggleHeatmap(this)">
           Тепловая карта зон риска
         </label>
-        <div class="row" style="margin-top:14px">
-          <button type="submit">▶ Старт</button>
+        <div class="actions">
+          <button type="submit" class="start">▶ Старт</button>
           <button type="button" class="stop" onclick="stop()">⏹ Стоп</button>
         </div>
       </form>
