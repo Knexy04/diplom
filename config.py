@@ -39,7 +39,7 @@ TRACKER_CONFIG = "botsort_reid.yaml"  # BoT-SORT с ReID для переиден
 
 # --- Классификация возраста ---
 AGE_CLASSIFIER = "ensemble"         # "ensemble" (все методы) / "pose" / "heuristic"
-AGE_CHILD_THRESHOLD = 0.5           # Порог решения ансамбля: avg-score < threshold → "child"
+AGE_CHILD_THRESHOLD = 0.55          # Порог решения: score < threshold → "child" (0.55 = смещение в сторону ребёнка, пропуск ребёнка критичнее)
 CHILD_HEIGHT_RATIO = 0.65           # Порог нормализованной высоты (child < ratio * max)
 LABEL_HOLD_SEC = 2.0                # Минимум секунд между сменами лейбла child↔adult (антимигание)
 MIN_BBOX_HEIGHT = 40                # Минимальная высота bbox — отсекает только самый мелкий мусор
