@@ -59,18 +59,16 @@ def draw_persons(
         # Рисуем bounding box
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
 
-        # Формируем текст метки
+        # ID на рамке не показываем. Для несопровождаемого ребёнка — таймер до тревоги.
+        label = ""
         if is_child:
             alone_sec = alone_times.get(track_id, 0.0)
             if alone_sec > 0:
-                label = f"#{track_id} {alone_sec:.0f}s"
-            else:
-                label = f"#{track_id}"
-        else:
-            label = f"#{track_id}"
+                label = f"{alone_sec:.0f}s"
 
-        # Рисуем метку с фоном
-        _draw_label(frame, label, (x1, y1 - 6), color, scale=0.4)
+        # Рисуем метку с фоном (только если есть что показать)
+        if label:
+            _draw_label(frame, label, (x1, y1 - 6), color, scale=0.4)
 
         # Debug-скоры под bbox (только если включены)
         if debug_scores and track_id in debug_scores:
