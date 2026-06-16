@@ -410,6 +410,18 @@ class EnsembleAgeClassifier(AgeClassifier):
                 votes.append((0.70, 1.5))  # adult-prior score 0.7, вес 1.5
                 debug["sitP"] = 0.70
 
+            # Обрезан нижней границей кадра (ног не видно) — высотные и
+            # пропорциональные методы дают ложного «ребёнка». Определяем по
+            # связке: bbox упирается в низ кадра И щиколотки не детектированы.
+            # Для таких людей полагаемся на YOLO26-direct и ML по лицу.
+            _, _, _, y2b = person.bbox
+            ankles_seen = (person.keypoints_conf is not None and
+                           (person.keypoints_conf[LEFT_ANKLE] > 0.3 or
+                            person.keypoints_conf[RIGHT_ANKLE] > 0.3))
+            truncated = (y2b >= frame_h - 3) and not ankles_seen
+            if truncated:
+                debug["cut"] = 1
+
             # 0. YOLO26 direct detection (если доступен)
             if person.yolo_class is not None:
                 if person.yolo_class == "adult":
@@ -421,18 +433,19 @@ class EnsembleAgeClassifier(AgeClassifier):
                 votes.append((yolo_score, yolo_w))
                 debug["Y26"] = yolo_score
 
-            # 1. Head-to-body ratio (только для стоящих)
-            if not sitting:
+            # 1. Head-to-body ratio (только для стоящих, не обрезанных)
+            if not sitting and not truncated:
                 hb_conf = estimate_head_body_ratio_confidence(person)
                 if hb_conf is not None:
                     votes.append((hb_conf, self.HEAD_BODY_WEIGHT))
                     debug["HB"] = hb_conf
 
-            # 2. Pose (пропорции скелета)
-            pose_conf = estimate_pose_confidence(person)
-            if pose_conf is not None:
-                votes.append((pose_conf, self.POSE_WEIGHT))
-                debug["P"] = pose_conf
+            # 2. Pose (пропорции скелета) — ненадёжна на обрезанном скелете
+            if not truncated:
+                pose_conf = estimate_pose_confidence(person)
+                if pose_conf is not None:
+                    votes.append((pose_conf, self.POSE_WEIGHT))
+                    debug["P"] = pose_conf
 
             # 3. ML (лицо)
             if self.ml_session is not None:
@@ -446,7 +459,7 @@ class EnsembleAgeClassifier(AgeClassifier):
             # 4-5. Высотные методы — только для стоящих. У сидящего bbox
             # короче из-за позы, не из-за возраста; иначе сидящих взрослых
             # классифицировали бы как детей.
-            if not sitting:
+            if not sitting and not truncated:
                 rel_conf = estimate_height_confidence(person, persons, frame_h)
                 if rel_conf is not None:
                     votes.append((rel_conf, self.HEIGHT_REL_WEIGHT))
