@@ -19,8 +19,8 @@ YOLO_MODEL = "yolo26n-pose.pt"     # pose-модель: bbox + 17 keypoints ск
 YOLO_CHILD_MODEL = "models/yolo_child_detector.pt"  # YOLO26: 2 класса (adult/child)
 USE_YOLO_CHILD_DETECTOR = True     # YOLO26s обучена на adult/child dataset
 CONFIDENCE_THRESHOLD = 0.30          # Минимальная уверенность детекции — компромисс между шумом и пропусками
-YOLO_IMGSZ = 1280                   # Разрешение inference (1280 = макс. точность на дальнем плане, требует GPU)
-POSE_SKIP_FRAMES = 1                # Запускать child-детектор каждый кадр (макс. точность; на слабом железе ставь 3)
+YOLO_IMGSZ = 640                    # Разрешение inference (640 = реальное время; 960/1280 = выше точность на дальнем плане, но ниже FPS)
+POSE_SKIP_FRAMES = 3                # Child-детектор раз в N кадров (3 = баланс FPS/точность, как в ВКР; 1 = макс. точность)
 # Авто-выбор устройства: cuda (сервер с GPU) → mps (Apple Silicon) → cpu
 def _auto_device():
     try:
