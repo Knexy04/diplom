@@ -13,7 +13,7 @@ match_thresh: 0.8          # Порог IoU для ассоциации
 fuse_score: True
 
 # BoT-SORT специфичные
-gmc_method: sparseOptFlow  # Компенсация движения камеры
+gmc_method: none           # Компенсация движения камеры (none для стационарных камер; sparseOptFlow — для PTZ/подвижных, но дорого на CPU)
 
 # ReID — переидентификация людей после окклюзии
 proximity_thresh: 0.5      # Мин. IoU для ReID
