@@ -157,7 +157,8 @@ def _processing_loop():
         # --- Визуализация ---
         if heatmap_acc and state.heatmap_enabled:
             frame = heatmap_acc.render_overlay(frame)
-        frame = draw_persons(frame, persons, age_labels, alone_times, alerted_ids, None)
+        dbg = getattr(classifier, "debug_scores", None) if config.SHOW_DEBUG_SCORES else None
+        frame = draw_persons(frame, persons, age_labels, alone_times, alerted_ids, dbg)
         frame = draw_alert_banner(frame, len(alerted_ids))
         frame = draw_fps(frame, fps_counter.get_fps())
 

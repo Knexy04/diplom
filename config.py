@@ -62,5 +62,5 @@ ALERT_JOURNAL_PATH = "alerts.jsonl" # Журнал тревожных событ
 
 # --- Отображение ---
 SHOW_WINDOW = True                  # Показывать окно с видео
-SHOW_DEBUG_SCORES = False           # Показывать debug-скоры (Y26/Rh/Ah/AVG) под bbox
+SHOW_DEBUG_SCORES = True            # Показывать debug-скоры (Y26/HB/P/M/Rh/Ah/AVG) под bbox для диагностики
 SHOW_FPS_OVERLAY = False            # Показывать FPS поверх кадра (есть в боковой панели)
