@@ -18,5 +18,5 @@ gmc_method: none           # Компенсация движения камер�
 # ReID — переидентификация людей после окклюзии
 proximity_thresh: 0.5      # Мин. IoU для ReID
 appearance_thresh: 0.8     # Мин. схожесть внешности для ReID
-with_reid: True            # ReID включён — переидентификация людей после окклюзии
-model: yolo26n-cls.pt      # ВАЖНО: явная .pt-модель → ReID на GPU (~27 мс/кадр). model:auto для E2E YOLO26 откатывается на CPU (~330 мс) — не использовать
+with_reid: False           # ReID отключён — экономия FPS на слабом сервере (ассоциация только по IoU/движению)
+model: yolo26n-cls.pt      # (не используется при with_reid: False) явная .pt-модель → ReID на GPU (~27 мс/кадр); model:auto откатывается на CPU (~330 мс)
